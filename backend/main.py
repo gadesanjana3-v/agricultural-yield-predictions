@@ -36,6 +36,19 @@ def load_ml_model():
     model = saved_data["model"]
     features = saved_data["features"]
 
+    # Compatibility shim if model was pickled with an older scikit-learn SimpleImputer
+    try:
+        preprocessor = model.named_steps.get("preprocessor")
+        if preprocessor is not None:
+            for _, transformer, _ in getattr(preprocessor, "transformers_", []):
+                if hasattr(transformer, "named_steps"):
+                    imputer = transformer.named_steps.get("imputer")
+                    if imputer is not None and not hasattr(imputer, "_fill_dtype"):
+                        if hasattr(imputer, "statistics_"):
+                            imputer._fill_dtype = imputer.statistics_.dtype
+    except Exception:
+        pass
+
     # Extract crop names from the fitted preprocessor encoder
     try:
         crop_encoder = (
