@@ -7,6 +7,8 @@ const form = document.getElementById("predictionForm");
 const resultBox = document.getElementById("result");
 const cropSelect = document.getElementById("crop");
 const submitBtn = document.getElementById("submitBtn");
+const historyBody = document.getElementById("historyBody");
+const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
 
 // Load crops from backend or use fallback
 async function loadCrops() {
@@ -110,7 +112,10 @@ form.addEventListener("submit", async function(event) {
                 <div class="predicted-value">🌾 Predicted Yield: <span>${data.predicted_yield.toFixed(2)} kg/ha</span></div>
                 <div style="margin-top: 6px;">📦 <strong>Estimated Total Production:</strong> ${totalTonnes}</div>
             </div>
+            ${data.id ? `<div class="db-saved-notice">✓ Saved to PostgreSQL Database (ID: ${data.id})</div>` : ""}
         `, "success");
+
+        loadHistory();
 
     } catch (error) {
         console.error(error);
@@ -130,5 +135,39 @@ function showResult(html, type) {
     resultBox.classList.remove("hidden");
 }
 
+// Fetch and render prediction history from PostgreSQL
+async function loadHistory() {
+    if (!historyBody) return;
+    try {
+        const response = await fetch(`${API_BASE}/history?limit=15`);
+        if (!response.ok) throw new Error("Failed to load history");
+        const data = await response.json();
+        const items = data.history || [];
+
+        if (items.length === 0) {
+            historyBody.innerHTML = `<tr><td colspan="5" class="empty-state">No predictions recorded yet.</td></tr>`;
+            return;
+        }
+
+        historyBody.innerHTML = items.map(item => `
+            <tr>
+                <td>${item.timestamp || "-"}</td>
+                <td><strong>${item.crop}</strong></td>
+                <td>${item.year}</td>
+                <td>${Number(item.crop_area_harvested).toLocaleString()}</td>
+                <td class="yield-badge">${Number(item.predicted_yield).toFixed(2)}</td>
+            </tr>
+        `).join("");
+    } catch (err) {
+        console.warn("Could not load history:", err);
+        historyBody.innerHTML = `<tr><td colspan="5" class="empty-state">Unable to load database history.</td></tr>`;
+    }
+}
+
+if (refreshHistoryBtn) {
+    refreshHistoryBtn.addEventListener("click", loadHistory);
+}
+
 // Initialize on page load
 loadCrops();
+loadHistory();

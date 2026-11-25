@@ -11,6 +11,12 @@
     <header>
         <h1>🌾 Agricultural Yield Prediction</h1>
         <p>Machine Learning Powered Crop Yield Forecasting</p>
+        <div class="nav-links">
+            <a href="/docs" target="_blank" class="nav-pill">📘 API Docs</a>
+            <a href="/health" target="_blank" class="nav-pill">💚 Health Check</a>
+            <a href="/crops" target="_blank" class="nav-pill">🌾 Supported Crops</a>
+            <a href="/history" target="_blank" class="nav-pill">🗄️ History JSON</a>
+        </div>
     </header>
 
     <main class="main-layout">
@@ -40,6 +46,33 @@
             </form>
 
             <div id="result" class="result-box hidden"></div>
+        </section>
+
+        <section class="card container history-section">
+            <div class="history-header">
+                <h2>📊 Stored Prediction History</h2>
+                <button type="button" id="refreshHistoryBtn" class="secondary-btn">↻ Refresh</button>
+            </div>
+            <p class="subtitle">Persisted in Neon PostgreSQL Database</p>
+
+            <div class="table-wrapper">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Crop</th>
+                            <th>Year</th>
+                            <th>Area (ha)</th>
+                            <th>Predicted Yield (kg/ha)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                        <tr>
+                            <td colspan="5" class="empty-state">Loading history...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
     </main>
 

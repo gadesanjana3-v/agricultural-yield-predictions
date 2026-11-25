@@ -8,6 +8,11 @@ import json
 from pathlib import Path
 from contextlib import asynccontextmanager
 
+try:
+    from backend.database import init_db, save_prediction, get_history, is_db_configured
+except ImportError:
+    from database import init_db, save_prediction, get_history, is_db_configured
+
 # Directory paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_PATH = BASE_DIR / "models" / "model.pkl"
@@ -49,6 +54,7 @@ def load_ml_model():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown lifecycle handler."""
+    init_db()
     load_ml_model()
     yield
 
@@ -186,6 +192,18 @@ def serve_js():
     return FileResponse(FRONTEND_DIR / "script.js", media_type="application/javascript")
 
 
+# Health Check endpoint
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "model_loaded": model is not None,
+        "database_configured": is_db_configured(),
+        "features_count": len(features),
+        "total_crops": len(crop_names)
+    }
+
+
 # API Status & Route Directory
 @app.get("/api")
 def api_info():
@@ -193,9 +211,12 @@ def api_info():
         "message": "Agricultural Yield Prediction API is running!",
         "endpoints": {
             "web_ui": "/",
+            "health": "/health",
             "crops": "/crops",
             "predict": "/predict (POST)",
-            "docs": "/docs"
+            "history": "/history",
+            "docs": "/docs",
+            "redoc": "/redoc"
         }
     }
 
@@ -243,11 +264,40 @@ def predict(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model prediction failed: {str(e)}")
 
+    rounded_yield = round(predicted_yield, 2)
+    total_tonnes = round((predicted_yield * data.crop_area_harvested) / 1000.0, 2)
+
+    record_id = None
+    try:
+        record_id = save_prediction(
+            crop=data.crop,
+            year=data.year,
+            area=data.crop_area_harvested,
+            predicted_yield=rounded_yield,
+            total_tonnes=total_tonnes,
+        )
+    except Exception as e:
+        print(f"Warning: Could not save prediction to PostgreSQL: {e}")
+
     return {
+        "id": record_id,
         "crop": data.crop,
         "year": data.year,
         "crop_area_harvested": data.crop_area_harvested,
-        "predicted_yield": round(predicted_yield, 2),
+        "predicted_yield": rounded_yield,
         "yield_unit": "kg/ha",
-        "estimated_total_production_tonnes": round((predicted_yield * data.crop_area_harvested) / 1000.0, 2)
+        "estimated_total_production_tonnes": total_tonnes
     }
+
+
+# Retrieve stored prediction history from PostgreSQL
+@app.get("/history")
+def history(limit: int = 50):
+    try:
+        records = get_history(limit=limit)
+        return {
+            "total": len(records),
+            "history": records
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch history: {str(e)}")

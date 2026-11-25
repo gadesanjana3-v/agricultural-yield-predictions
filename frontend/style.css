@@ -30,6 +30,31 @@ header p {
     opacity: 0.9;
 }
 
+.nav-links {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.nav-pill {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    text-decoration: none;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.1s;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.nav-pill:hover {
+    background: rgba(255, 255, 255, 0.35);
+    transform: translateY(-1px);
+}
+
 .main-layout {
     max-width: 900px;
     margin: 30px auto;
@@ -173,6 +198,79 @@ button[type="submit"]:active {
 .predicted-value span {
     font-weight: 800;
     color: #1e5e3a;
+}
+
+.secondary-btn {
+    background: #edf2f7;
+    color: #2d3748;
+    border: 1px solid #cbd5e0;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.secondary-btn:hover {
+    background: #e2e8f0;
+}
+
+.db-saved-notice {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #15803d;
+    font-style: italic;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-header h2 {
+    margin-bottom: 0;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    margin-top: 10px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    text-align: left;
+}
+
+th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    padding: 10px 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+tr:hover td {
+    background: #f8fafc;
+}
+
+.empty-state {
+    text-align: center;
+    color: #94a3b8;
+    padding: 24px 0;
+}
+
+.yield-badge {
+    font-weight: 700;
+    color: #2f855a;
 }
 
 footer {
