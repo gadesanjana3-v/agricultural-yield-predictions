@@ -200,6 +200,21 @@ SAMPLE_PRESETS = {
             "land__cropland__area": 169463.0,
             "pesticide__pesticides_total__use_per_value_of_agricultural_production": 0.1
         }
+    },
+    "Maize (Sample Preset)": {
+        "summary": "Maize (corn) (Pre-filled sample)",
+        "description": "Ready-to-test real data for Maize (corn)",
+        "value": {
+            "crop": "Maize (corn)",
+            "year": 2014,
+            "crop_area_harvested": 9319980.0,
+            "fertilizer__nutrient_nitrogen_n_total__agricultural_use": 16949600.0,
+            "fertilizer__nutrient_phosphate_p2o5_total__agricultural_use": 6098900.0,
+            "fertilizer__nutrient_potash_k2o_total__agricultural_use": 2532900.0,
+            "land__agricultural_land__area": 179728.0,
+            "land__cropland__area": 169463.0,
+            "pesticide__pesticides_total__use_per_value_of_agricultural_production": 0.1
+        }
     }
 }
 
