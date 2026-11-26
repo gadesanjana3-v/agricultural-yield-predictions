@@ -9,9 +9,27 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 try:
-    from backend.database import init_db, save_prediction, get_history, is_db_configured
+    from backend.database import (
+        init_db,
+        save_prediction,
+        get_history,
+        get_prediction_by_id,
+        update_prediction,
+        delete_prediction,
+        clear_history,
+        is_db_configured,
+    )
 except ImportError:
-    from database import init_db, save_prediction, get_history, is_db_configured
+    from database import (
+        init_db,
+        save_prediction,
+        get_history,
+        get_prediction_by_id,
+        update_prediction,
+        delete_prediction,
+        clear_history,
+        is_db_configured,
+    )
 
 # Directory paths
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -226,8 +244,9 @@ def api_info():
             "web_ui": "/",
             "health": "/health",
             "crops": "/crops",
-            "predict": "/predict (POST)",
-            "history": "/history",
+            "predict": "/predict (POST - Create)",
+            "history": "/history (GET - Read All, DELETE - Clear All)",
+            "history_item": "/history/{record_id} (GET, PUT, DELETE)",
             "docs": "/docs",
             "redoc": "/redoc"
         }
@@ -243,14 +262,8 @@ def get_crops():
     }
 
 
-# Predict crop yield
-@app.post("/predict")
-def predict(
-    data: CropData = Body(
-        ...,
-        openapi_examples=SAMPLE_PRESETS
-    )
-):
+def _run_prediction(data: CropData):
+    """Validate input, run ML model prediction, and return (rounded_yield, total_tonnes)."""
     if model is None:
         raise HTTPException(status_code=500, detail="ML model is not loaded.")
 
@@ -265,7 +278,6 @@ def predict(
     input_data = data.model_dump()
     input_df = pd.DataFrame([input_data])
 
-    # Arrange input columns in exact training order
     try:
         input_df = input_df[features]
     except KeyError as e:
@@ -279,6 +291,18 @@ def predict(
 
     rounded_yield = round(predicted_yield, 2)
     total_tonnes = round((predicted_yield * data.crop_area_harvested) / 1000.0, 2)
+    return rounded_yield, total_tonnes
+
+
+# CREATE: Predict crop yield and store in PostgreSQL
+@app.post("/predict")
+def predict(
+    data: CropData = Body(
+        ...,
+        openapi_examples=SAMPLE_PRESETS
+    )
+):
+    rounded_yield, total_tonnes = _run_prediction(data)
 
     record_id = None
     try:
@@ -303,7 +327,7 @@ def predict(
     }
 
 
-# Retrieve stored prediction history from PostgreSQL
+# READ (All): Retrieve stored prediction history from PostgreSQL
 @app.get("/history")
 def history(limit: int = 50):
     try:
@@ -314,3 +338,67 @@ def history(limit: int = 50):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch history: {str(e)}")
+
+
+# READ (Single): Retrieve one prediction record by ID
+@app.get("/history/{record_id}")
+def get_single_prediction(record_id: int):
+    try:
+        record = get_prediction_by_id(record_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch record: {str(e)}")
+
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"Prediction record {record_id} not found.")
+    return record
+
+
+# UPDATE: Update a prediction record by ID and recalculate yield
+@app.put("/history/{record_id}")
+def update_history_record(
+    record_id: int,
+    data: CropData = Body(
+        ...,
+        openapi_examples=SAMPLE_PRESETS
+    )
+):
+    rounded_yield, total_tonnes = _run_prediction(data)
+
+    try:
+        updated = update_prediction(
+            record_id=record_id,
+            crop=data.crop,
+            year=data.year,
+            area=data.crop_area_harvested,
+            predicted_yield=rounded_yield,
+            total_tonnes=total_tonnes,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update record: {str(e)}")
+
+    if updated is None:
+        raise HTTPException(status_code=404, detail=f"Prediction record {record_id} not found.")
+    return updated
+
+
+# DELETE (Single): Delete one prediction record by ID
+@app.delete("/history/{record_id}")
+def delete_history_record(record_id: int):
+    try:
+        deleted = delete_prediction(record_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete record: {str(e)}")
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Prediction record {record_id} not found.")
+    return {"message": f"Prediction record {record_id} deleted.", "id": record_id}
+
+
+# DELETE (All): Clear all prediction history
+@app.delete("/history")
+def delete_all_history():
+    try:
+        deleted_count = clear_history()
+        return {"message": "All prediction history cleared.", "deleted_count": deleted_count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear history: {str(e)}")

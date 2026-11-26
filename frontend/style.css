@@ -151,6 +151,72 @@ button[type="submit"]:active {
     background: #e2e8f0;
 }
 
+.form-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-actions .hidden {
+    display: none;
+}
+
+.history-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.danger-btn {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.danger-btn:hover {
+    background: #fecaca;
+}
+
+.row-actions {
+    display: flex;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.action-btn {
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.edit-btn {
+    background: #e0f2fe;
+    color: #0369a1;
+    border-color: #bae6fd;
+}
+
+.edit-btn:hover {
+    background: #bae6fd;
+}
+
+.delete-btn {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
+.delete-btn:hover {
+    background: #fecaca;
+}
+
 .result-box {
     margin-top: 22px;
     padding: 18px;
@@ -214,6 +280,72 @@ button[type="submit"]:active {
 
 .secondary-btn:hover {
     background: #e2e8f0;
+}
+
+.form-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-actions .hidden {
+    display: none;
+}
+
+.history-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.danger-btn {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.danger-btn:hover {
+    background: #fecaca;
+}
+
+.row-actions {
+    display: flex;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.action-btn {
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.edit-btn {
+    background: #e0f2fe;
+    color: #0369a1;
+    border-color: #bae6fd;
+}
+
+.edit-btn:hover {
+    background: #bae6fd;
+}
+
+.delete-btn {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
+.delete-btn:hover {
+    background: #fecaca;
 }
 
 .db-saved-notice {

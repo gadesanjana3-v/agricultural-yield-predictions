@@ -42,7 +42,10 @@
                     <input type="number" id="area" placeholder="e.g. 21000" step="any" min="0.01" required>
                 </div>
 
-                <button type="submit" id="submitBtn">Predict Yield</button>
+                <div class="form-actions">
+                    <button type="submit" id="submitBtn">Predict Yield</button>
+                    <button type="button" id="cancelEditBtn" class="secondary-btn hidden">Cancel Edit</button>
+                </div>
             </form>
 
             <div id="result" class="result-box hidden"></div>
@@ -51,9 +54,12 @@
         <section class="card container history-section">
             <div class="history-header">
                 <h2>📊 Stored Prediction History</h2>
-                <button type="button" id="refreshHistoryBtn" class="secondary-btn">↻ Refresh</button>
+                <div class="history-actions">
+                    <button type="button" id="refreshHistoryBtn" class="secondary-btn">↻ Refresh</button>
+                    <button type="button" id="clearHistoryBtn" class="danger-btn">🗑️ Clear All</button>
+                </div>
             </div>
-            <p class="subtitle">Persisted in Neon PostgreSQL Database</p>
+            <p class="subtitle">Persisted in Neon PostgreSQL Database (Full CRUD)</p>
 
             <div class="table-wrapper">
                 <table id="historyTable">
@@ -64,11 +70,12 @@
                             <th>Year</th>
                             <th>Area (ha)</th>
                             <th>Predicted Yield (kg/ha)</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="historyBody">
                         <tr>
-                            <td colspan="5" class="empty-state">Loading history...</td>
+                            <td colspan="6" class="empty-state">Loading history...</td>
                         </tr>
                     </tbody>
                 </table>

@@ -6,9 +6,16 @@ const API_BASE = (window.location.protocol === "file:" || window.location.port =
 const form = document.getElementById("predictionForm");
 const resultBox = document.getElementById("result");
 const cropSelect = document.getElementById("crop");
+const yearInput = document.getElementById("year");
+const areaInput = document.getElementById("area");
 const submitBtn = document.getElementById("submitBtn");
+const cancelEditBtn = document.getElementById("cancelEditBtn");
 const historyBody = document.getElementById("historyBody");
 const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
+const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+
+// Tracks record ID when editing an existing row (null = Create mode)
+let editingId = null;
 
 // Load crops from backend or use fallback
 async function loadCrops() {
@@ -47,9 +54,7 @@ async function loadCrops() {
             });
         }
 
-        // Set default selection
         cropSelect.value = "Rice";
-
     } catch (err) {
         console.warn("Could not load crops dynamically from backend, using default list:", err);
         cropSelect.innerHTML = `
@@ -61,13 +66,29 @@ async function loadCrops() {
     }
 }
 
-// Handle prediction submission
+function exitEditMode() {
+    editingId = null;
+    submitBtn.innerText = "Predict Yield";
+    if (cancelEditBtn) cancelEditBtn.classList.add("hidden");
+}
+
+function startEdit(item) {
+    editingId = item.id;
+    cropSelect.value = item.crop;
+    yearInput.value = item.year;
+    areaInput.value = item.crop_area_harvested;
+    submitBtn.innerText = `Update Prediction #${item.id}`;
+    if (cancelEditBtn) cancelEditBtn.classList.remove("hidden");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// CREATE or UPDATE prediction
 form.addEventListener("submit", async function(event) {
     event.preventDefault();
 
     const crop = cropSelect.value;
-    const year = parseInt(document.getElementById("year").value, 10);
-    const area = parseFloat(document.getElementById("area").value);
+    const year = parseInt(yearInput.value, 10);
+    const area = parseFloat(areaInput.value);
 
     if (!crop || !year || !area || area <= 0) {
         showResult("Please enter valid details.", "error");
@@ -80,43 +101,47 @@ form.addEventListener("submit", async function(event) {
         crop_area_harvested: area
     };
 
+    const isUpdating = editingId !== null;
+    const url = isUpdating ? `${API_BASE}/history/${editingId}` : `${API_BASE}/predict`;
+    const method = isUpdating ? "PUT" : "POST";
+
     submitBtn.disabled = true;
-    submitBtn.innerText = "Predicting...";
-    showResult("Predicting yield... please wait.", "info");
+    submitBtn.innerText = isUpdating ? "Updating..." : "Predicting...";
+    showResult(isUpdating ? "Updating prediction..." : "Predicting yield... please wait.", "info");
 
     try {
-        const response = await fetch(`${API_BASE}/predict`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+        const response = await fetch(url, {
+            method: method,
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.detail || "Prediction request failed");
+            throw new Error(data.detail || "Request failed");
         }
 
         const totalTonnes = data.estimated_total_production_tonnes
             ? `${Number(data.estimated_total_production_tonnes).toLocaleString()} tonnes`
-            : `${((data.predicted_yield * data.crop_area_harvested) / 1000).toLocaleString(undefined, {maximumFractionDigits: 2})} tonnes`;
+            : `${((data.predicted_yield * data.crop_area_harvested) / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} tonnes`;
+
+        const actionLabel = isUpdating ? "Updated in PostgreSQL Database" : "Saved to PostgreSQL Database";
 
         showResult(`
-            <div class="result-title">Prediction Result</div>
+            <div class="result-title">${isUpdating ? "Updated Prediction Result" : "Prediction Result"}</div>
             <div class="result-details">
                 <div><strong>Crop:</strong> ${data.crop}</div>
                 <div><strong>Year:</strong> ${data.year}</div>
                 <div><strong>Area:</strong> ${Number(data.crop_area_harvested).toLocaleString()} ha</div>
-                <div class="predicted-value">🌾 Predicted Yield: <span>${data.predicted_yield.toFixed(2)} kg/ha</span></div>
+                <div class="predicted-value">🌾 Predicted Yield: <span>${Number(data.predicted_yield).toFixed(2)} kg/ha</span></div>
                 <div style="margin-top: 6px;">📦 <strong>Estimated Total Production:</strong> ${totalTonnes}</div>
             </div>
-            ${data.id ? `<div class="db-saved-notice">✓ Saved to PostgreSQL Database (ID: ${data.id})</div>` : ""}
+            ${data.id ? `<div class="db-saved-notice">✓ ${actionLabel} (ID: ${data.id})</div>` : ""}
         `, "success");
 
+        exitEditMode();
         loadHistory();
-
     } catch (error) {
         console.error(error);
         showResult(
@@ -125,17 +150,13 @@ form.addEventListener("submit", async function(event) {
         );
     } finally {
         submitBtn.disabled = false;
-        submitBtn.innerText = "Predict Yield";
+        if (editingId === null) {
+            submitBtn.innerText = "Predict Yield";
+        }
     }
 });
 
-function showResult(html, type) {
-    resultBox.className = `result-box ${type}`;
-    resultBox.innerHTML = html;
-    resultBox.classList.remove("hidden");
-}
-
-// Fetch and render prediction history from PostgreSQL
+// READ prediction history from PostgreSQL
 async function loadHistory() {
     if (!historyBody) return;
     try {
@@ -145,28 +166,70 @@ async function loadHistory() {
         const items = data.history || [];
 
         if (items.length === 0) {
-            historyBody.innerHTML = `<tr><td colspan="5" class="empty-state">No predictions recorded yet.</td></tr>`;
+            historyBody.innerHTML = `<tr><td colspan="6" class="empty-state">No predictions recorded yet.</td></tr>`;
             return;
         }
 
-        historyBody.innerHTML = items.map(item => `
-            <tr>
+        historyBody.innerHTML = "";
+        items.forEach(item => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
                 <td>${item.timestamp || "-"}</td>
                 <td><strong>${item.crop}</strong></td>
                 <td>${item.year}</td>
                 <td>${Number(item.crop_area_harvested).toLocaleString()}</td>
                 <td class="yield-badge">${Number(item.predicted_yield).toFixed(2)}</td>
-            </tr>
-        `).join("");
+                <td class="row-actions">
+                    <button type="button" class="action-btn edit-btn">✏️ Edit</button>
+                    <button type="button" class="action-btn delete-btn">🗑️ Delete</button>
+                </td>
+            `;
+            tr.querySelector(".edit-btn").addEventListener("click", () => startEdit(item));
+            tr.querySelector(".delete-btn").addEventListener("click", () => deleteRecord(item.id));
+            historyBody.appendChild(tr);
+        });
     } catch (err) {
         console.warn("Could not load history:", err);
-        historyBody.innerHTML = `<tr><td colspan="5" class="empty-state">Unable to load database history.</td></tr>`;
+        historyBody.innerHTML = `<tr><td colspan="6" class="empty-state">Unable to load database history.</td></tr>`;
     }
 }
 
-if (refreshHistoryBtn) {
-    refreshHistoryBtn.addEventListener("click", loadHistory);
+// DELETE a single record
+async function deleteRecord(id) {
+    try {
+        const response = await fetch(`${API_BASE}/history/${id}`, { method: "DELETE" });
+        if (!response.ok) throw new Error("Delete failed");
+        if (editingId === id) exitEditMode();
+        loadHistory();
+    } catch (err) {
+        console.error(err);
+        showResult(`Failed to delete record #${id}.`, "error");
+    }
 }
+
+// DELETE all records
+async function clearAllHistory() {
+    if (!confirm("Delete all stored predictions from the database?")) return;
+    try {
+        const response = await fetch(`${API_BASE}/history`, { method: "DELETE" });
+        if (!response.ok) throw new Error("Clear failed");
+        exitEditMode();
+        loadHistory();
+    } catch (err) {
+        console.error(err);
+        showResult("Failed to clear database history.", "error");
+    }
+}
+
+function showResult(html, type) {
+    resultBox.className = `result-box ${type}`;
+    resultBox.innerHTML = html;
+    resultBox.classList.remove("hidden");
+}
+
+if (cancelEditBtn) cancelEditBtn.addEventListener("click", exitEditMode);
+if (refreshHistoryBtn) refreshHistoryBtn.addEventListener("click", loadHistory);
+if (clearHistoryBtn) clearHistoryBtn.addEventListener("click", clearAllHistory);
 
 // Initialize on page load
 loadCrops();

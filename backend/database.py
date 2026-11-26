@@ -1,5 +1,5 @@
 """
-PostgreSQL database module (Neon DB) for storing and retrieving prediction history.
+PostgreSQL database module (Neon DB) for full CRUD operations on prediction history.
 Reads connection string from the DATABASE_URL environment variable (or .env file).
 """
 
@@ -58,6 +58,7 @@ def init_db() -> bool:
         return False
 
 
+# CREATE
 def save_prediction(
     crop: str,
     year: int,
@@ -65,7 +66,7 @@ def save_prediction(
     predicted_yield: float,
     total_tonnes: float,
 ) -> Optional[int]:
-    """Save a prediction record into PostgreSQL and return its ID."""
+    """Insert a new prediction record into PostgreSQL and return its ID."""
     if not DATABASE_URL:
         return None
 
@@ -86,6 +87,7 @@ def save_prediction(
         return row["id"] if row else None
 
 
+# READ (All)
 def get_history(limit: int = 50) -> List[Dict[str, Any]]:
     """Retrieve the most recent predictions from PostgreSQL."""
     if not DATABASE_URL:
@@ -111,3 +113,102 @@ def get_history(limit: int = 50) -> List[Dict[str, Any]]:
             )
             rows = cur.fetchall()
             return [dict(row) for row in rows]
+
+
+# READ (Single)
+def get_prediction_by_id(record_id: int) -> Optional[Dict[str, Any]]:
+    """Retrieve a single prediction record by ID."""
+    if not DATABASE_URL:
+        return None
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS timestamp,
+                    crop,
+                    year,
+                    crop_area_harvested,
+                    predicted_yield,
+                    estimated_total_production_tonnes
+                FROM predictions
+                WHERE id = %s;
+                """,
+                (record_id,),
+            )
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+
+# UPDATE
+def update_prediction(
+    record_id: int,
+    crop: str,
+    year: int,
+    area: float,
+    predicted_yield: float,
+    total_tonnes: float,
+) -> Optional[Dict[str, Any]]:
+    """Update an existing prediction record by ID and return the updated row."""
+    if not DATABASE_URL:
+        return None
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE predictions
+                SET
+                    crop = %s,
+                    year = %s,
+                    crop_area_harvested = %s,
+                    predicted_yield = %s,
+                    estimated_total_production_tonnes = %s
+                WHERE id = %s
+                RETURNING
+                    id,
+                    TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS timestamp,
+                    crop,
+                    year,
+                    crop_area_harvested,
+                    predicted_yield,
+                    estimated_total_production_tonnes;
+                """,
+                (crop, year, area, predicted_yield, total_tonnes, record_id),
+            )
+            row = cur.fetchone()
+        conn.commit()
+        return dict(row) if row else None
+
+
+# DELETE (Single)
+def delete_prediction(record_id: int) -> bool:
+    """Delete a prediction record by ID. Returns True if a row was deleted."""
+    if not DATABASE_URL:
+        return False
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM predictions WHERE id = %s RETURNING id;",
+                (record_id,),
+            )
+            row = cur.fetchone()
+        conn.commit()
+        return row is not None
+
+
+# DELETE (All)
+def clear_history() -> int:
+    """Delete all prediction records and return the number of deleted rows."""
+    if not DATABASE_URL:
+        return 0
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM predictions;")
+            deleted_count = cur.rowcount
+        conn.commit()
+        return deleted_count
